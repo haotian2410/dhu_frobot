@@ -48,17 +48,24 @@ namespace py = pybind11;
 namespace fs = filesystem;
 
 //=========================================================================/=================================================/
+//export ROBOT_HOME=/media/ubuntu/3063-3833/Program/Project/lht_fr/dhu_frobot-main
 //文件读取、存储路径
+static std::string BASE =
+    (std::getenv("ROBOT_HOME") ? std::getenv("ROBOT_HOME") : std::string("."));
 static const char* ip = "192.168.5.100";										// 机械臂控制IP
-static string dir = "C:/Program/Project/Robot/Result/";						// 机器人自身信息存储路径
-static string camera = dir + "Reprojection/CameraCali/param.txt";			// 相机标定重投影结果文件
-static string handeye = dir + "Reprojection/HandeyeCali/param.txt";			// 手眼标定重投影结果文件
-static string bottle = dir + "VLM/bottle.txt";								// 存储vlm输出信息（用于矫正瓶子位姿）
-static string flower = dir + "VLM/flower.txt";								// 存储vlm输出信息（用于存储花束位姿）
-static string judge = dir + "VLM/judge.txt";								// 存储vlm输出信息（用于矫正花束位姿）
-static string picture = "C:/Program/Project/Robot/Data/Capture/";			// 所捕获图像的存储路径
-static string quest = "C:/Program/Project/Robot/Data/Prompt/quest.txt";
-static string order = "C:/Program/Project/Robot/Data/Prompt/order.txt";
+static std::string dir     = BASE + "/Result/";								// 机器人自身信息存储路径
+static std::string camera  = dir + "Reprojection/CameraCali/param.txt";		// 相机标定重投影结果文件
+static std::string handeye = dir + "Reprojection/HandeyeCali/param.txt";	// 手眼标定重投影结果文件
+static std::string bottle  = dir + "VLM/bottle.txt";						// 存储vlm输出信息（用于矫正瓶子位姿）
+static std::string flower  = dir + "VLM/flower.txt";						// 存储vlm输出信息（用于存储花束位姿）
+static std::string judge   = dir + "VLM/judge.txt";							// 存储vlm输出信息（用于矫正花束位姿）
+
+static std::string picture = BASE + "/Data/Capture/";						// 所捕获图像的存储路径
+static std::string quest   = BASE + "/Data/Prompt/quest.txt";
+static std::string order   = BASE + "/Data/Prompt/order.txt";
+
+static std::string scan_json = dir + "VLM/scan.json";
+
 //=========================================================================/=================================================/
 // 机械臂运动变换链
 static Mat dist_coeffs = Mat::zeros(5, 1, CV_64F);							// 畸变系数
@@ -237,12 +244,6 @@ void LoadPose(vector<double> pose) {
 	cout << "Load RobotPose: \n" << e2b_matrix << endl;
 }
 
-// 输入位姿进行末端直线运动
-int Move(vector<double> pose, double speed) {
-// 	double* point = pose.data();
-// 	demo->moveRobot(point);
-	return 0;
-}
 int Move_jaka(vector<double> pose, double speed) {
 	CartesianPose cp{};
 	cp.tran.x = pose[0];
@@ -255,6 +256,14 @@ int Move_jaka(vector<double> pose, double speed) {
 	int ret = robot.linear_move(&cp, ABS, TRUE, spd);
 	std::cout << "linear_move ret = " << ret << "\n";
 	return ret;
+}
+
+// 输入位姿进行末端直线运动
+int Move(vector<double> pose, double speed) {
+// 	double* point = pose.data();
+// 	demo->moveRobot(point);
+ 	return Move_jaka(pose, speed);
+	//return 0;
 }
 
 // 捕获相机当前图像
@@ -287,7 +296,8 @@ int Capture(string jpg) {
 void Gripper(bool state) {
 	try {
 		// 导入Python模块
-		py::module_ gripper_mod = py::module_::import("gripper_control");
+		//py::module_ gripper_mod = py::module_::import("gripper_control");
+		py::module gripper_mod = py::module::import("gripper_control");
 
 		// 根据state调用对应的Python函数
 		if (state) {
@@ -697,16 +707,16 @@ void Decide(string skill) {
 }
 
 static void init_mechanism() {
-	//// 初始化机械臂
-	//int ret = robot.login_in(ip);
-	//std::cout << "login_in return: " << ret << endl;
-	//if (ret != 0) {
-	//	cerr << "机械臂登录失败，请检查 IP/网络。\n";
-	//	return -1;
-	//}
+	// 初始化机械臂
+	int ret = robot.login_in(ip);
+	std::cout << "login_in return: " << ret << endl;
+	if (ret != 0) {
+		cerr << "机械臂登录失败，请检查 IP/网络。\n";
+		return;
+	}
 
-	//std::cout << "机械臂上电: " << robot.power_on() << endl;
-	//std::cout << "机械臂上使能: " << robot.enable_robot() << endl;
+	std::cout << "机械臂上电: " << robot.power_on() << endl;
+	std::cout << "机械臂上使能: " << robot.enable_robot() << endl;
 
 	// 初始化相机
 	if (!D455.initialize()) {
@@ -714,7 +724,9 @@ static void init_mechanism() {
 	}
 	try {
 		// 导入Python模块
-		py::module_ gripper_mod = py::module_::import("gripper_control");
+		//py::module_ gripper_mod = py::module_::import("gripper_control");
+		py::module gripper_mod = py::module::import("gripper_control");
+
 		gripper_mod.attr("init_gripper")().cast<bool>();
 	}
 	catch (const py::error_already_set& e) {
@@ -744,9 +756,10 @@ int main() {
 	py::scoped_interpreter guard{};
 	// 添加openai包所在路径
 	py::exec(R"(
-        import sys
-        sys.path.append(r'D:\python3.13\Lib\site-packages')
+		import sys, os
+		sys.path.append(os.getcwd())
 		)");
+
 	init_mechanism();
 	Move(pose_init, 100);
 	init_system();
@@ -766,7 +779,7 @@ int main() {
 	catch (const py::error_already_set& e) {
 		cout << "调用python文件失败:" << e.what() << endl;
 	}
-	ifstream file("C:/Program/Project/Robot/Result/VLM/scan.json", ios::binary);
+	ifstream file(scan_json, ios::binary);
 	json j = json::parse(file);
 
 	auto steps = j["steps"];
@@ -782,7 +795,9 @@ int main() {
 	}
 	try {
 		// 导入Python模块
-		py::module_ gripper_mod = py::module_::import("gripper_control");
+		//py::module_ gripper_mod = py::module_::import("gripper_control");
+		py::module gripper_mod = py::module::import("gripper_control");
+
 		gripper_mod.attr("stop_gripper")().cast<bool>();
 	}
 	catch (const py::error_already_set& e) {
