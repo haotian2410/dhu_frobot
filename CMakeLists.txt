@@ -40,17 +40,9 @@ find_package(CURL REQUIRED)
 # ==========================================
 # JAKA SDK（Linux / shared / IMPORTED）
 # ==========================================
-
-# JAKA SDK 路径（按你现在的真实路径写死，稳定优先）
-set(JAKA_SDK_ROOT "/root/SDK2.1.11/Linux/c&c++")
-
-set(JAKA_INCLUDE_DIR
-    "${JAKA_SDK_ROOT}/inc_of_c++"
-)
-
-set(JAKA_LIBRARY
-    "${JAKA_SDK_ROOT}/x86_64-linux-gnu/shared/libjakaAPI.so"
-)
+set(JAKA_SDK_ROOT "/opt/jaka_sdk")
+set(JAKA_INCLUDE_DIR "${JAKA_SDK_ROOT}/inc_of_c++")
+set(JAKA_LIBRARY     "${JAKA_SDK_ROOT}/aarch64-linux-gnu/shared/libjakaAPI.so")
 
 # 检查 JAKA SDK 是否存在
 if(NOT EXISTS "${JAKA_INCLUDE_DIR}")
@@ -63,13 +55,11 @@ endif()
 
 # 定义 IMPORTED library
 add_library(JAKA::API SHARED IMPORTED)
-
 set_target_properties(JAKA::API PROPERTIES
-    IMPORTED_LOCATION
-        "${JAKA_LIBRARY}"
-    INTERFACE_INCLUDE_DIRECTORIES
-        "${JAKA_INCLUDE_DIR}"
+    IMPORTED_LOCATION "${JAKA_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${JAKA_INCLUDE_DIR}"
 )
+
 
 # ==========================================
 # 源文件

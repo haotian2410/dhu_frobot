@@ -10,15 +10,20 @@ client = OpenAI(
 # --------------------------------------
 # 读取 system prompt（你想要的“从文件中读”）
 # --------------------------------------
-with open(r"C:\Program\Project\Robot\Data\Prompt\promptall.txt", "r", encoding="utf-8") as f:
+import os
+
+BASE = os.environ.get("ROBOT_HOME", ".")
+
+promptall_path = os.path.join(BASE, "Data", "Prompt", "promptall.txt")
+image_path     = os.path.join(BASE, "Data", "Capture", "flower.jpg")
+txt_path       = os.path.join(BASE, "Data", "Prompt", "order.txt")
+
+with open(promptall_path, "r", encoding="utf-8") as f:
     system_prompt = f.read()
 
-# 图片路径
-image_path = r"C:\Program\Project\Robot\Data\Capture\flower.jpg"
-txt_path = r"C:\Program\Project\Robot\Data\Prompt\order.txt"
-
-with open(r"C:\Program\Project\Robot\Data\Prompt\order.txt", "r", encoding="utf-8") as t:
+with open(txt_path, "r", encoding="utf-8") as t:
     system_order = t.read()
+
 
 def encode_image(path):
     with open(path, "rb") as f:

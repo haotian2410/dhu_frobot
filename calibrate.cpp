@@ -9,7 +9,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/utils/logger.hpp>
 #include "function.h"
-
+#include <cstdlib>  
 
 #define PI 3.14159265358979323846
 
@@ -20,7 +20,9 @@ using namespace Eigen;
 
 //============================================================================================/
 //文件读取、存储路径
-static string dir = "C:/Program/Project/Robot/";                        // 项目路径
+static std::string BASE =
+    (std::getenv("ROBOT_HOME") ? std::getenv("ROBOT_HOME") : std::string("."));
+static std::string dir = BASE + "/";   // 项目根目录
 static string img_dir = dir + "Data/Calibration/Image/";                // 参与标定的图像的路径源
 static string image = dir + "Data//Calibration/image_list.txt";         // 参与标定的图像名称文件
 static string robot = dir + "Data//Calibration/robot_pose.txt";         // 机械臂末端位姿信息文件

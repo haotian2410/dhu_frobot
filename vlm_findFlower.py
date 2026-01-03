@@ -9,15 +9,25 @@ client = OpenAI(
 )
 
 # 需传给大模型的图片
-image_path = "C:/Program/Project/Robot/Data/Capture/flower.jpg"
+import os
+BASE = os.environ.get("ROBOT_HOME", ".")
+image_path = os.path.join(BASE, "Data", "Capture", "flower.jpg")
+output_file_path = os.path.join(BASE, "Result", "VLM", "flower.txt")
+
 
 # 定义方法将指定路径图片转为Base64编码
 def encode_image(image_path):
   with open(image_path, "rb") as image_file:
     return base64.b64encode(image_file.read()).decode('utf-8')
 
-with open(r"C:\Program\Project\Robot\Data\Prompt\quest.txt", "r", encoding="utf-8") as t:
+import os
+
+BASE = os.environ.get("ROBOT_HOME", ".")
+quest_path = os.path.join(BASE, "Data", "Prompt", "quest.txt")
+
+with open(quest_path, "r", encoding="utf-8") as t:
     system_quest = t.read()
+
 
 # 将图片转为Base64编码
 base64_image = encode_image(image_path)
@@ -48,7 +58,7 @@ response = client.chat.completions.create(
 )
 # 获取响应内容
 result_content = response.choices[0].message.content
-output_file_path = "C:/Program/Project/Robot/Result/VLM/flower.txt"
+
 # 将结果保存到txt文件
 try:
     with open(output_file_path, "w", encoding="utf-8") as file:
