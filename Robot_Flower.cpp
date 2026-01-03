@@ -1,5 +1,4 @@
-﻿
-#include <vector>
+﻿#include <vector>
 #include <string>
 #include <fstream>
 #include <filesystem>
@@ -52,7 +51,7 @@ namespace fs = filesystem;
 //文件读取、存储路径
 static std::string BASE =
     (std::getenv("ROBOT_HOME") ? std::getenv("ROBOT_HOME") : std::string("."));
-static const char* ip = "192.168.5.100";										// 机械臂控制IP
+static const char* ip = "192.168.1.100";										// 机械臂控制IP
 static std::string dir     = BASE + "/Result/";								// 机器人自身信息存储路径
 static std::string camera  = dir + "Reprojection/CameraCali/param.txt";		// 相机标定重投影结果文件
 static std::string handeye = dir + "Reprojection/HandeyeCali/param.txt";	// 手眼标定重投影结果文件

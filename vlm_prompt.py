@@ -1,83 +1,97 @@
-from openai import OpenAI
-import base64
-import json
-
-client = OpenAI(
-    api_key="1c914b4d-3447-4b57-b53c-c04bf7bf9f2b",
-    base_url="https://ark.cn-beijing.volces.com/api/v3",
-)
-
-# --------------------------------------
-# 读取 system prompt（你想要的“从文件中读”）
-# --------------------------------------
 import os
+import json
+import base64
+import requests
 
+# -----------------------------
+# 统一项目根目录
+# -----------------------------
 BASE = os.environ.get("ROBOT_HOME", ".")
-
 promptall_path = os.path.join(BASE, "Data", "Prompt", "promptall.txt")
-image_path     = os.path.join(BASE, "Data", "Capture", "flower.jpg")
-txt_path       = os.path.join(BASE, "Data", "Prompt", "order.txt")
+order_path     = os.path.join(BASE, "Data", "Prompt", "order.txt")
+quest_path     = os.path.join(BASE, "Data", "Prompt", "quest.txt")
 
+# 你项目里拍照保存的位置（看你 grep 里是 Data/Capture/flower.jpg）
+image_path     = os.path.join(BASE, "Data", "Capture", "flower.jpg")
+
+# 输出：scan.json（你的 C++ 会读这个）
+out_json_path  = os.path.join(BASE, "Result", "VLM", "scan.json")
+os.makedirs(os.path.dirname(out_json_path), exist_ok=True)
+
+# -----------------------------
+# 读取 system prompt / order / quest
+# -----------------------------
 with open(promptall_path, "r", encoding="utf-8") as f:
     system_prompt = f.read()
 
-with open(txt_path, "r", encoding="utf-8") as t:
+with open(order_path, "r", encoding="utf-8") as t:
     system_order = t.read()
 
+with open(quest_path, "r", encoding="utf-8") as t:
+    system_quest = t.read()
 
-def encode_image(path):
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8")
+# -----------------------------
+# 读图转 base64 (data url)
+# -----------------------------
+with open(image_path, "rb") as f:
+    b64 = base64.b64encode(f.read()).decode("utf-8")
+image_data_url = f"data:image/jpeg;base64,{b64}"
 
-base64_image = encode_image(image_path)
+# -----------------------------
+# 调 OpenAI (HTTP)
+# -----------------------------
+api_key = "1c914b4d-3447-4b57-b53c-c04bf7bf9f2b"
 
-# --------------------------------------
-# 正确格式的 messages
-#  system 和 user 分开写
-# --------------------------------------
-messages = [
-    {
-        "role": "system",
-        "content": [
-            {"type": "text", "text": system_prompt}
-        ]
-    },
-    {
-        "role": "user",
-        "content": [
-            {
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpg;base64,{base64_image}"
-                }
-            },
-            {"type": "text", "text": system_order}
-        ]
-    }
-]
+headers = {
+    "Authorization": f"Bearer {api_key}",
+    "Content-Type": "application/json",
+}
 
-response = client.chat.completions.create(
-    model="doubao-seed-1-6-vision-250815",
-    messages=messages,
-    extra_body={
-        "thinking": {"type": "disabled"}
-    }
+# 你原来怎么组织 prompt，这里给你一个合理结构：
+# - system: promptall.txt
+# - user: 组合 quest + order + 图片
+user_text = f"{system_quest}\n\n{system_order}".strip()
+
+payload = {
+    "model": "gpt-4o-mini",
+    "messages": [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": [
+            {"type": "text", "text": user_text},
+            {"type": "image_url", "image_url": {"url": image_data_url}},
+        ]},
+    ],
+    "temperature": 0.2,
+}
+
+resp = requests.post(
+    "https://api.openai.com/v1/chat/completions",
+    headers=headers,
+    data=json.dumps(payload),
+    timeout=90,
 )
+resp.raise_for_status()
 
-result_content = response.choices[0].message.content
+data = resp.json()
+content = data["choices"][0]["message"]["content"]
 
-# 保存到文件
-output_file_path = r"C:\Program\Project\Robot\Result\VLM\scan.json"
-data = json.loads(result_content)
-
-# 保存到 JSON 文件
+# -----------------------------
+# 把模型输出写成 scan.json
+# -----------------------------
+# 你的 C++ 里是 json::parse(file) ，所以这里必须落盘为合法 JSON
+# 如果模型返回的是 JSON 字符串，这里解析一下再 dump
 try:
-    with open(output_file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-    print(f"vlm识别结果已成功保存到: {output_file_path}")
-except Exception as e:
-    print(f"保存文件时出错: {e}")
+    result = json.loads(content)
+except json.JSONDecodeError:
+    # 兜底：有时模型会带 ```json ... ```
+    cleaned = content.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[-1]
+        if cleaned.endswith("```"):
+            cleaned = cleaned.rsplit("\n", 1)[0]
+    result = json.loads(cleaned)
 
-print("已保存到:", output_file_path)
-print("vlm模型返回结果:")
-print(result_content)
+with open(out_json_path, "w", encoding="utf-8") as f:
+    json.dump(result, f, ensure_ascii=False, indent=2)
+
+print("Wrote:", out_json_path)
