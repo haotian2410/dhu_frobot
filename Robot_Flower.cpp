@@ -13,7 +13,6 @@
 #ifdef _WIN32
 #include <WinSock2.h> //1
 #include <WS2tcpip.h> //1
-#include <Windows.h>
 #else
 #include <unistd.h>
 #include <thread>
@@ -49,43 +48,43 @@ namespace fs = filesystem;
 //=========================================================================/=================================================/
 //export ROBOT_HOME=/media/ubuntu/3063-3833/Program/Project/lht_fr/dhu_frobot-main
 //文件读取、存储路径
-static std::string BASE =
+ std::string BASE =
     (std::getenv("ROBOT_HOME") ? std::getenv("ROBOT_HOME") : std::string("."));
-static const char* ip = "192.168.1.100";										// 机械臂控制IP
-static std::string dir     = BASE + "/Result/";								// 机器人自身信息存储路径
-static std::string camera  = dir + "Reprojection/CameraCali/param.txt";		// 相机标定重投影结果文件
-static std::string handeye = dir + "Reprojection/HandeyeCali/param.txt";	// 手眼标定重投影结果文件
-static std::string bottle  = dir + "VLM/bottle.txt";						// 存储vlm输出信息（用于矫正瓶子位姿）
-static std::string flower  = dir + "VLM/flower.txt";						// 存储vlm输出信息（用于存储花束位姿）
-static std::string judge   = dir + "VLM/judge.txt";							// 存储vlm输出信息（用于矫正花束位姿）
+ const char* ip = "192.168.1.100";										// 机械臂控制IP
+ std::string dir     = BASE + "/Result/";								// 机器人自身信息存储路径
+ std::string camera  = dir + "Reprojection/CameraCali/param.txt";		// 相机标定重投影结果文件
+ std::string handeye = dir + "Reprojection/HandeyeCali/param.txt";	// 手眼标定重投影结果文件
+ std::string bottle  = dir + "VLM/bottle.txt";						// 存储vlm输出信息（用于矫正瓶子位姿）
+ std::string flower  = dir + "VLM/flower.txt";						// 存储vlm输出信息（用于存储花束位姿）
+ std::string judge   = dir + "VLM/judge.txt";							// 存储vlm输出信息（用于矫正花束位姿）
 
-static std::string picture = BASE + "/Data/Capture/";						// 所捕获图像的存储路径
-static std::string quest   = BASE + "/Data/Prompt/quest.txt";
-static std::string order   = BASE + "/Data/Prompt/order.txt";
+ std::string picture = BASE + "/Data/Capture/";						// 所捕获图像的存储路径
+ std::string quest   = BASE + "/Data/Prompt/quest.txt";
+ std::string order   = BASE + "/Data/Prompt/order.txt";
 
-static std::string scan_json = dir + "VLM/scan.json";
+ std::string scan_json = dir + "VLM/scan.json";
 
 //=========================================================================/=================================================/
 // 机械臂运动变换链
-static Mat dist_coeffs = Mat::zeros(5, 1, CV_64F);							// 畸变系数
-static Mat camera_matrix = Mat::zeros(3, 3, CV_64F);						// 相机矩阵
-static Mat e2b_matrix = Mat::zeros(4, 4, CV_64F);							// 机械臂位姿信息
-static Mat c2e_matrix = Mat::zeros(4, 4, CV_64F);							// 手眼变换矩阵
-static Mat o2c_matrix = Mat::zeros(4, 4, CV_64F);							// 图像到相机的变换矩阵
-static double camera_rate[4][2] = { {400, 0.836}, {400, 0.836}, { 150, 0.45 } ,{0, 0.223} };// 相机在不同绝对距离下对应图像的像素长度比（mm, mm/px)
+ Mat dist_coeffs = Mat::zeros(5, 1, CV_64F);							// 畸变系数
+ Mat camera_matrix = Mat::zeros(3, 3, CV_64F);						// 相机矩阵
+ Mat e2b_matrix = Mat::zeros(4, 4, CV_64F);							// 机械臂位姿信息
+ Mat c2e_matrix = Mat::zeros(4, 4, CV_64F);							// 手眼变换矩阵
+ Mat o2c_matrix = Mat::zeros(4, 4, CV_64F);							// 图像到相机的变换矩阵
+ double camera_rate[4][2] = { {400, 0.836}, {400, 0.836}, { 150, 0.45 } ,{0, 0.223} };// 相机在不同绝对距离下对应图像的像素长度比（mm, mm/px)
 //=========================================================================/=================================================/
-static Size photo = Size(1280.0, 800.0);									// 相机拍摄图像规格(px)
-static double handsize = 114;												// 夹爪可夹取的范围(mm)
-static double horizon = 426;												// 从环境感知出的桌面位置(mm)
-static double bottle_height;												// vlm估计的瓶子高度(mm)
-static vector<double> xy;													// 存储用于估算瓶子的数组
-static vector<double> pose_bottle;											// 当前对瓶子位置的认知
-static vector<double> pose_flower;											// 当前对花束位置的认知
-static Point2f fix_l, fix_r;												// 对花束位置的偏移修正
+ Size photo = Size(1280.0, 800.0);									// 相机拍摄图像规格(px)
+ double handsize = 114;												// 夹爪可夹取的范围(mm)
+double horizon = 426;												// 从环境感知出的桌面位置(mm)
+double bottle_height;												// vlm估计的瓶子高度(mm)
+vector<double> xy;													// 存储用于估算瓶子的数组
+vector<double> pose_bottle;											// 当前对瓶子位置的认知
+vector<double> pose_flower;											// 当前对花束位置的认知
+Point2f fix_l, fix_r;												// 对花束位置的偏移修正
 //=========================================================================/=================================================/
-static vector<double> pose_init = { 700, -250, camera_rate[0][0] + horizon, 180, 0, -130 };					// 相机初始拍摄位置
-static vector<double> pose_temp;
-static json target;
+vector<double> pose_init = { 700, -250, camera_rate[0][0] + horizon, 180, 0, -130 };					// 相机初始拍摄位置
+vector<double> pose_temp;
+json target;
 
 // RealSense相机类
 class RealSenseCamera {
@@ -705,7 +704,7 @@ void Decide(string skill) {
 	if (skill == "Check") Check();
 }
 
-static void init_mechanism() {
+void init_mechanism() {
 	// 初始化机械臂
 	int ret = robot.login_in(ip);
 	std::cout << "login_in return: " << ret << endl;
@@ -733,7 +732,7 @@ static void init_mechanism() {
 	}
 }
 
-static void init_system() {
+void init_system() {
 	Loadparam();
 	Sleep(300);
 	Capture("bottle.jpg");
@@ -741,66 +740,59 @@ static void init_system() {
 }
 
 
-int main() {
-#ifdef _WIN32
-	SetConsoleOutputCP(CP_UTF8);  // 输出编码UTF-8
-	SetConsoleCP(CP_UTF8);        // 输入编码UTF-8
-#endif
-	// 抑制 OpenCV 的信息消息
-	cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_ERROR);
-	// 设置Python主程序路径
-	// wchar_t pythonPath[] = L"D:\\python3.13\\python.exe";
-	// Py_SetProgramName(pythonPath);
-	// 初始化Python解释器
-	py::scoped_interpreter guard{};
-	// 添加openai包所在路径
-	py::exec(R"(
-		import sys, os
-		sys.path.append(os.getcwd())
-		)");
+// int main() {
+// 	// 抑制 OpenCV 的信息消息
+// 	cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_ERROR);
+// 	// 初始化Python解释器
+// 	py::scoped_interpreter guard{};
+// 	// 添加openai包所在路径
+// 	py::exec(R"(
+// 		import sys, os
+// 		sys.path.append(os.getcwd())
+// 		)");
 
-	init_mechanism();
-	Move(pose_init, 100);
-	init_system();
-	//// 给予指令
-	//cout << "请给出您的命令：" << endl;
-	//string s;
-	//getline(cin, s);
-	//ofstream outputtext(order);
-	//outputtext << s;  // 将完整命令写入文件
-	//outputtext.close();
+// 	init_mechanism();
+// 	Move(pose_init, 100);
+// 	init_system();
+// 	//// 给予指令
+// 	//cout << "请给出您的命令：" << endl;
+// 	//string s;
+// 	//getline(cin, s);
+// 	//ofstream outputtext(order);
+// 	//outputtext << s;  // 将完整命令写入文件
+// 	//outputtext.close();
 
-	//任务分解生成json
-	try {
-		// 使用 eval_file 执行Python文件
-		py::eval_file("vlm_prompt.py");
-	}
-	catch (const py::error_already_set& e) {
-		cout << "调用python文件失败:" << e.what() << endl;
-	}
-	ifstream file(scan_json, ios::binary);
-	json j = json::parse(file);
+// 	//任务分解生成json
+// 	try {
+// 		// 使用 eval_file 执行Python文件
+// 		py::eval_file("vlm_prompt.py");
+// 	}
+// 	catch (const py::error_already_set& e) {
+// 		cout << "调用python文件失败:" << e.what() << endl;
+// 	}
+// 	ifstream file(scan_json, ios::binary);
+// 	json j = json::parse(file);
 
-	auto steps = j["steps"];
+// 	auto steps = j["steps"];
 
-	//循环运行给出skill json
-	for (auto& step : steps) {
-		int id = step["id"];
-		string skill = step["skill"];
-		target = step["target"];
-		string description = step["description"];
-		cout << target << skill << endl;
-		Decide(skill);
-	}
-	try {
-		// 导入Python模块
-		//py::module_ gripper_mod = py::module_::import("gripper_control");
-		py::module gripper_mod = py::module::import("gripper_control");
+// 	//循环运行给出skill json
+// 	for (auto& step : steps) {
+// 		int id = step["id"];
+// 		string skill = step["skill"];
+// 		target = step["target"];
+// 		string description = step["description"];
+// 		cout << target << skill << endl;
+// 		Decide(skill);
+// 	}
+// 	try {
+// 		// 导入Python模块
+// 		//py::module_ gripper_mod = py::module_::import("gripper_control");
+// 		py::module gripper_mod = py::module::import("gripper_control");
 
-		gripper_mod.attr("stop_gripper")().cast<bool>();
-	}
-	catch (const py::error_already_set& e) {
-		cout << "调用Python函数失败：" << e.what() << endl;
-	}
-	return 0;
-}
+// 		gripper_mod.attr("stop_gripper")().cast<bool>();
+// 	}
+// 	catch (const py::error_already_set& e) {
+// 		cout << "调用Python函数失败：" << e.what() << endl;
+// 	}
+// 	return 0;
+// }

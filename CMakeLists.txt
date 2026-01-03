@@ -66,17 +66,18 @@ set_target_properties(JAKA::API PROPERTIES
 # ==========================================
 
 set(SOURCES
+    robot_server.cpp  
     Robot_Flower.cpp
     function.cpp
+    robot_core.cpp          # 你封装 InitAll/RunTask/Stop/Log 的文件
 )
-
-add_executable(robot_flower ${SOURCES})
+add_executable(robot_server ${SOURCES})
 
 # ==========================================
 # include 目录
 # ==========================================
 
-target_include_directories(robot_flower PRIVATE
+target_include_directories(robot_server PRIVATE
     ${PROJECT_SOURCE_DIR}
     ${OpenCV_INCLUDE_DIRS}
     ${realsense2_INCLUDE_DIRS}
@@ -88,7 +89,7 @@ target_include_directories(robot_flower PRIVATE
 # 链接库
 # ==========================================
 
-target_link_libraries(robot_flower PRIVATE
+target_link_libraries(robot_server PRIVATE
     ${OpenCV_LIBS}
     nlohmann_json
     realsense2::realsense2
@@ -103,10 +104,7 @@ target_link_libraries(robot_flower PRIVATE
 # ==========================================
 
 if(UNIX)
-    target_compile_definitions(robot_flower PRIVATE __linux__)
-    target_compile_options(robot_flower PRIVATE -Wall)
+    target_compile_definitions(robot_server PRIVATE __linux__)
+    target_compile_options(robot_server PRIVATE -Wall)
 endif()
 
-if(WIN32)
-    target_compile_definitions(robot_flower PRIVATE _WIN32 WIN32_LEAN_AND_MEAN)
-endif()
