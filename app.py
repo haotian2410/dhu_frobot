@@ -1,6 +1,7 @@
 import streamlit as st
 import cv2
 import time
+import numpy as np
 import requests
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
@@ -52,15 +53,15 @@ with st.sidebar:
         stop_flag = status_resp.get("stop", False)
         st.write(f"✅ inited: **{inited}**")
         st.write(f"⏳ busy: **{busy}**")
-        st.write(f"�� stop: **{stop_flag}**")
+        st.write(f"❓ stop: **{stop_flag}**")
     else:
         st.warning("Status API not reachable")
 
     st.divider()
 
-    st.write("Device State: ", "�� Running" if st.session_state.is_running else "⚪ Idle")
+    st.write("Device State: ", "⚡⚡ Running" if st.session_state.is_running else "⚪ Idle")
 
-    if st.button("�� Init System", use_container_width=True):
+    if st.button(" Init System", use_container_width=True):
         st.session_state.vlm_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] Init request...")
         resp = call_api("/init", timeout=60)  # 初始化可能很久
         if resp.get("ok"):
@@ -75,10 +76,10 @@ with st.sidebar:
             st.session_state.vlm_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] ❌ Init failed: {resp.get('error')}")
             st.session_state.is_running = False
 
-    if st.button("�� Emergency Stop", type="primary", use_container_width=True):
+    if st.button("❓ Emergency Stop", type="primary", use_container_width=True):
         call_api("/stop")
         st.session_state.is_running = False
-        st.session_state.vlm_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] �� Emergency stop!")
+        st.session_state.vlm_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] ⚪⚪ Emergency stop!")
         st.error("Emergency stop triggered!")
 
 # ------------------------------
@@ -90,19 +91,21 @@ col1, col2 = st.columns([2, 1])
 # Camera view
 # ------------------------------
 with col1:
-    st.subheader("�� Live Monitor")
+    st.subheader(" Live Monitor")
     video_placeholder = st.empty()
 
     if st.session_state.is_running:
-        if st.session_state.cap is None:
-            st.session_state.cap = cv2.VideoCapture(0)
-
-        ret, frame = st.session_state.cap.read()
-        if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            video_placeholder.image(frame, channels="RGB", use_container_width=True)
-        else:
-            st.warning("Camera frame not available")
+        try:
+            r = requests.get(f"{ROBOT_API}/frame", timeout=1)
+            if r.status_code == 200:
+                jpg = np.frombuffer(r.content, dtype=np.uint8)
+                frame = cv2.imdecode(jpg, cv2.IMREAD_COLOR)
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                video_placeholder.image(frame, channels="RGB", use_container_width=True)
+            else:
+                st.warning("Camera frame not available")
+        except Exception as e:
+            st.warning(f"Camera error: {e}")
     else:
         video_placeholder.image("https://via.placeholder.com/1280x800.png?text=Camera+Offline")
 
@@ -110,7 +113,7 @@ with col1:
 # Command UI
 # ------------------------------
 with col2:
-    st.subheader("�� Task Command")
+    st.subheader(" Task Command")
 
     user_input = st.text_input("Input instruction (e.g. put rose into vase)", key="text_input")
 
@@ -140,7 +143,7 @@ if st.session_state.is_running:
 # Log panel
 # ------------------------------
 st.divider()
-st.subheader("�� VLM Task Logs")
+st.subheader(" VLM Task Logs")
 
 log_container = st.container(height=300)
 with log_container:

@@ -24,9 +24,24 @@ message(STATUS "OpenCV libs: ${OpenCV_LIBS}")
 # RealSense2
 find_package(realsense2 REQUIRED)
 
-# Python & pybind11
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+# ==============================
+# Force Python 3.8
+# ==============================
+set(Python3_FIND_STRATEGY LOCATION)     # prefer exact location
+set(Python3_FIND_IMPLEMENTATIONS CPython)
+set(Python3_FIND_VIRTUALENV NEVER)
+
+# force exact version
+find_package(Python3 3.8 EXACT REQUIRED COMPONENTS Interpreter Development)
+
+message(STATUS "Python3 executable: ${Python3_EXECUTABLE}")
+message(STATUS "Python3 version: ${Python3_VERSION}")
+message(STATUS "Python3 include: ${Python3_INCLUDE_DIRS}")
+message(STATUS "Python3 library: ${Python3_LIBRARIES}")
+
+# pybind11 (must be compatible with Python3::Python)
 find_package(pybind11 REQUIRED)
+
 
 # Add JSON-CPP
 find_package(nlohmann_json REQUIRED)

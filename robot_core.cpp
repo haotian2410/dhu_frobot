@@ -9,10 +9,27 @@
 #include <pybind11/embed.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/utils/logger.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include "robot_flower_api.h"
 
 using json = nlohmann::json;
 namespace py = pybind11;
+
+// ======== 获取视频流 ========
+
+static cv::Mat g_last_frame;
+static std::mutex g_frame_mtx;
+void UpdateLatestFrame(const cv::Mat& frame) {
+    std::lock_guard<std::mutex> lk(g_frame_mtx);
+    frame.copyTo(g_last_frame);
+}
+bool GetLatestFrame(std::vector<uint8_t>& jpeg_data) {
+    std::lock_guard<std::mutex> lk(g_frame_mtx);
+    if (g_last_frame.empty()) return false;
+
+    std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, 85};
+    return cv::imencode(".jpg", g_last_frame, jpeg_data, params);
+}
 
 // ======== ① 日志队列（步骤1） ========
 

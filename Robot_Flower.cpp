@@ -7,6 +7,7 @@
 #include <opencv2/opencv.hpp>
 #include <librealsense2/rs.hpp>
 #include "function.h"
+#include "robot_core.h"
 #include <pybind11/embed.h>
 #include "jktypes.h"
 #include "JAKAZuRobot.h"
@@ -47,6 +48,12 @@ namespace fs = filesystem;
 
 //=========================================================================/=================================================/
 //export ROBOT_HOME=/media/ubuntu/3063-3833/Program/Project/lht_fr/dhu_frobot-main
+
+// sudo ip addr flush dev eth01
+// sudo ip link set eth01 up
+// sudo ip addr add 192.168.1.10/24 dev eth01
+// ping 192.168.1.100
+
 //文件读取、存储路径
  std::string BASE =
     (std::getenv("ROBOT_HOME") ? std::getenv("ROBOT_HOME") : std::string("."));
@@ -82,7 +89,8 @@ vector<double> pose_bottle;											// 当前对瓶子位置的认知
 vector<double> pose_flower;											// 当前对花束位置的认知
 Point2f fix_l, fix_r;												// 对花束位置的偏移修正
 //=========================================================================/=================================================/
-vector<double> pose_init = { 700, -250, camera_rate[0][0] + horizon, 180, 0, -130 };					// 相机初始拍摄位置
+//vector<double> pose_init = { 700, -250, camera_rate[0][0] + horizon, 180, 0, -130 };					// 相机初始拍摄位置
+vector<double> pose_init = { 402.696, 113.798, 418.206,  -177, -0, -90 };					// 相机初始拍摄位置
 vector<double> pose_temp;
 json target;
 
@@ -147,6 +155,11 @@ public:
 					cerr << "第 " << (i + 1) << " 次尝试: 图像为空" << endl;
 					continue;
 				}
+
+				 Mat img_copy = image.clone();
+
+            	//每次拿到新图都更新
+            	UpdateLatestFrame(img_copy);
 
 				std::cout << "成功捕获图像，尺寸: " << image.cols << "*" << image.rows << endl;
 				return image.clone(); // 返回拷贝以避免内存问题
