@@ -1,7 +1,7 @@
 本项目需求第三方库：
 realsense2
 OpenCV
-Python3
+Python3（暂时绑定py3.8） 
 pybind11
 Threads
 CURL
@@ -15,5 +15,6 @@ sudo ip addr flush dev eth01
 sudo ip link set eth01 up
 sudo ip addr add 192.168.1.10/24 dev eth01
 ping 192.168.1.100 //机械臂ip
+
 
 
